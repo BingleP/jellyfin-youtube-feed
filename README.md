@@ -97,16 +97,17 @@ sudo systemctl restart jellyfin
 
 ## Proxy configuration
 
-Edit `/opt/ytstream-proxy/ytstream_proxy.py` to change:
+All proxy settings are controlled via environment variables in the systemd service file at `/etc/systemd/system/ytstream-proxy.service`:
 
-```python
-INVIDIOUS = "http://invidious.lan"   # your Invidious base URL
-YTDLP     = "/usr/bin/yt-dlp"       # path to yt-dlp binary
-PORT      = 3003                     # proxy listen port
+```ini
+Environment=INVIDIOUS_URL=http://invidious.lan   # your Invidious base URL
+Environment=YTDLP_PATH=/usr/bin/yt-dlp           # path to yt-dlp (optional)
+Environment=PROXY_PORT=3003                       # listen port (optional)
 ```
 
-After editing, restart the service:
+After editing:
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl restart ytstream-proxy
 ```
 
