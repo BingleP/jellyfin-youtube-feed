@@ -26,9 +26,9 @@ public class YouTubeFeedChannel : IChannel, ISupportsLatestMedia
 
     // ── IChannel ─────────────────────────────────────────────────────────────
 
-    public string Name => "Invidious";
+    public string Name => "YouTube Feed";
     public string Description => "Browse YouTube videos from your recommended feed";
-    public string DataVersion => "4";
+    public string DataVersion => "5";
     public string HomePageUrl => "https://www.youtube.com/feed/recommended";
     public ChannelParentalRating ParentalRating => ChannelParentalRating.GeneralAudience;
 
@@ -136,11 +136,11 @@ public class YouTubeFeedChannel : IChannel, ISupportsLatestMedia
             Protocol = MediaBrowser.Model.MediaInfo.MediaProtocol.Http,
             Type = MediaSourceType.Default,
             IsRemote = false,
-            Container = "ts",
+            Container = "mp4",
             IsInfiniteStream = false,
             RequiresOpening = false,
             RequiresClosing = false,
-            SupportsProbing = false,
+            SupportsProbing = true,
             SupportsTranscoding = true,
             SupportsDirectPlay = false,
             SupportsDirectStream = true,

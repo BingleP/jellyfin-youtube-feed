@@ -12,6 +12,10 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration/configurationpage.html" />
+  </ItemGroup>
+
   <!-- Reference the DLLs already installed with Jellyfin — no NuGet feed needed -->
   <ItemGroup>
     <Reference Include="Jellyfin.Data">
