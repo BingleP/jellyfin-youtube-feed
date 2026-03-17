@@ -17,10 +17,11 @@ import urllib.request
 import json
 import re
 import logging
+import os
 
-INVIDIOUS = "http://invidious.lan"
-YTDLP     = "/usr/bin/yt-dlp"
-PORT      = 3003
+INVIDIOUS = os.environ.get("INVIDIOUS_URL", "http://invidious.lan").rstrip("/")
+YTDLP     = os.environ.get("YTDLP_PATH", "/usr/bin/yt-dlp")
+PORT      = int(os.environ.get("PROXY_PORT", "3003"))
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 log = logging.getLogger("ytstream-proxy")
