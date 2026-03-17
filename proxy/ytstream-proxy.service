@@ -1,0 +1,13 @@
+[Unit]
+Description=YouTube Adaptive Stream Proxy (HLS redirect for Jellyfin)
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+ExecStart=/usr/bin/python3 /opt/ytstream-proxy/ytstream_proxy.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
