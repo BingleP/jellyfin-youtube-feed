@@ -1,55 +1,65 @@
 #!/usr/bin/env python3
 """
-ytstream-proxy — provides YouTube stream URLs for the Jellyfin Invidious channel.
+ytstream-proxy — pipes YouTube streams as MPEG-TS for Jellyfin channel playback.
 
-Uses yt-dlp to resolve a direct HLS (m3u8) URL, then redirects Jellyfin's
-ffmpeg to it. ffmpeg handles HLS natively — no piping or merging needed.
+Jellyfin hardcodes -f mpegts for all channel streams, so we can't redirect to
+a raw mp4/videoplayback URL. Instead, we resolve the stream URL with yt-dlp and
+pipe it through ffmpeg → MPEG-TS directly to Jellyfin's ffmpeg via HTTP.
 
 Endpoints:
-  GET /stream/{videoId}          — redirect to best HLS stream up to 720p
+  GET /stream/{videoId}          — stream as MPEG-TS up to 720p
   GET /stream/{videoId}?res=480  — request a specific max resolution
-  GET /info/{videoId}            — Invidious video info JSON (debug)
+  GET /info/{videoId}            — debug: show yt-dlp JSON info
 """
 
 import http.server
 import subprocess
-import urllib.request
+import shutil
 import json
 import re
 import logging
 import os
 
-INVIDIOUS = os.environ.get("INVIDIOUS_URL", "http://invidious.lan").rstrip("/")
-YTDLP     = os.environ.get("YTDLP_PATH", "/usr/bin/yt-dlp")
-PORT      = int(os.environ.get("PROXY_PORT", "3003"))
+YTDLP        = os.environ.get("YTDLP_PATH", "/usr/bin/yt-dlp")
+FFMPEG       = os.environ.get("FFMPEG_PATH", "/usr/lib/jellyfin-ffmpeg/ffmpeg")
+PORT         = int(os.environ.get("PROXY_PORT", "3003"))
+COOKIES_FILE = os.environ.get("COOKIES_FILE", "")
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s")
 log = logging.getLogger("ytstream-proxy")
 
 
-def get_info(video_id):
-    url = f"{INVIDIOUS}/api/v1/videos/{video_id}?fields=title,adaptiveFormats,formatStreams"
-    req = urllib.request.Request(url, headers={"User-Agent": "ytstream-proxy/1.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read())
-
-
 def resolve_stream_url(video_id, max_res):
-    """Run yt-dlp --get-url to get a direct HLS stream URL."""
+    """Run yt-dlp --get-url to get a direct stream URL."""
     res = max_res or "720"
+    # Prefer H.264 (avc1) video — AV1/VP9 can't be stream-copied into MPEG-TS
     fmt = (
-        f"best[height<={res}][protocol=m3u8_native]"
-        f"/best[height<={res}][protocol=m3u8]"
+        f"bestvideo[height<={res}][vcodec^=avc1]+bestaudio"
+        f"/bestvideo[height<={res}][vcodec=h264]+bestaudio"
+        f"/best[height<={res}][vcodec^=avc1]"
         f"/best[height<={res}]"
         f"/best"
     )
-    result = subprocess.run(
-        [YTDLP, "--quiet", "--no-warnings", "--no-playlist", "-f", fmt, "--get-url",
-         f"https://www.youtube.com/watch?v={video_id}"],
-        capture_output=True, text=True, timeout=30, cwd="/tmp",
-    )
+    cmd = [YTDLP, "--quiet", "--no-warnings", "--no-playlist"]
+    if COOKIES_FILE:
+        cmd += ["--cookies", COOKIES_FILE]
+    cmd += ["-f", fmt, "--get-url", f"https://www.youtube.com/watch?v={video_id}"]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd="/tmp")
     urls = result.stdout.strip().splitlines()
-    return urls[0] if urls else None, result.stderr
+    # yt-dlp may return two URLs (video + audio) for DASH formats
+    return urls, result.stderr
+
+
+def get_info(video_id):
+    """Run yt-dlp -j to get video metadata JSON."""
+    cmd = [YTDLP, "--quiet", "--no-warnings", "--no-playlist", "-j"]
+    if COOKIES_FILE:
+        cmd += ["--cookies", COOKIES_FILE]
+    cmd += [f"https://www.youtube.com/watch?v={video_id}"]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd="/tmp")
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr[:300])
+    return json.loads(result.stdout)
 
 
 class StreamHandler(http.server.BaseHTTPRequestHandler):
@@ -94,7 +104,7 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
         log.info("Resolving stream: videoId=%s res=%s", video_id, max_res)
 
         try:
-            stream_url, stderr = resolve_stream_url(video_id, max_res)
+            urls, stderr = resolve_stream_url(video_id, max_res)
         except subprocess.TimeoutExpired:
             log.error("yt-dlp timed out for %s", video_id)
             self.send_error(504, "yt-dlp timed out")
@@ -104,22 +114,61 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(500, str(e))
             return
 
-        if not stream_url:
+        if not urls:
             log.error("No URL for %s — stderr: %s", video_id, stderr[:300])
             self.send_error(500, "No stream URL available")
             return
 
-        log.info("Redirect %s → %s...", video_id, stream_url[:70])
-        self.send_response(302)
-        self.send_header("Location", stream_url)
+        # Build ffmpeg input args — one URL for combined, two for DASH (video+audio)
+        ffmpeg_inputs = []
+        for u in urls[:2]:
+            ffmpeg_inputs += ["-i", u]
+
+        if len(urls) >= 2:
+            # DASH: map both streams
+            ffmpeg_map = ["-map", "0:v:0", "-map", "1:a:0"]
+        else:
+            ffmpeg_map = []
+
+        ffmpeg_cmd = (
+            [FFMPEG, "-hide_banner", "-loglevel", "error"]
+            + ffmpeg_inputs
+            + ffmpeg_map
+            + ["-c:v", "copy", "-c:a", "aac", "-f", "mpegts", "pipe:1"]
+        )
+
+        log.info("Piping %s via ffmpeg (%d input(s))", video_id, len(urls[:2]))
+
+        try:
+            proc = subprocess.Popen(
+                ffmpeg_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                cwd="/tmp",
+            )
+        except Exception as e:
+            log.error("ffmpeg launch failed for %s: %s", video_id, e)
+            self.send_error(500, f"ffmpeg launch failed: {e}")
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "video/mp2t")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
+
+        try:
+            shutil.copyfileobj(proc.stdout, self.wfile)
+        except (BrokenPipeError, ConnectionResetError):
+            log.info("Client disconnected for %s", video_id)
+        finally:
+            proc.kill()
+            proc.wait()
 
 
 if __name__ == "__main__":
     server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), StreamHandler)
     log.info("ytstream-proxy listening on http://127.0.0.1:%d", PORT)
-    log.info("yt-dlp: %s | Invidious: %s", YTDLP, INVIDIOUS)
+    log.info("yt-dlp: %s | ffmpeg: %s", YTDLP, FFMPEG)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
