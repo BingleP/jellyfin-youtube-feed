@@ -1,21 +1,24 @@
-# Jellyfin Invidious Channel
+# jellyfin-youtube-feed
 
-A Jellyfin channel plugin that lets you browse and watch YouTube through your self-hosted [Invidious](https://invidious.io) instance. Video playback is resolved via `yt-dlp` and streamed as HLS — no YouTube account or API key required.
+A Jellyfin channel plugin that populates your channel with your personalised YouTube recommended feed. Videos are fetched via `yt-dlp` using your browser cookies and streamed as HLS — no YouTube API key or Invidious instance required.
 
 ## How it works
 
 ```
-Jellyfin UI
-  → plugin fetches metadata from Invidious API (trending, popular)
-  → click play → Jellyfin requests http://127.0.0.1:3003/stream/{videoId}
+On channel open:
+  → FeedSync runs yt-dlp with your cookies.txt
+  → fetches https://www.youtube.com/feed/recommended
+  → writes a .strm file per video into the plugin's strm/ directory
+  → channel scans strm/ and displays videos with thumbnails
+
+On playback:
+  → Jellyfin requests http://127.0.0.1:3003/stream/{videoId}
   → ytstream-proxy runs yt-dlp --get-url → HLS m3u8 URL
   → 302 redirect to manifest.googlevideo.com
-  → Jellyfin's ffmpeg transcodes HLS stream to your browser
+  → Jellyfin's ffmpeg transcodes HLS stream to your client
 ```
 
-Invidious handles **metadata only** (titles, thumbnails, descriptions). Actual video is fetched directly from YouTube's CDN via `yt-dlp`.
-
-> **Note:** Expect a 5–10 second startup delay per video — that's `yt-dlp` resolving the stream URL.
+> **Note:** Expect a 5–10 second startup delay per video — that's `yt-dlp` resolving the stream URL. Feed sync also takes a few seconds on first open.
 
 ---
 
@@ -27,7 +30,7 @@ Invidious handles **metadata only** (titles, thumbnails, descriptions). Actual v
 | **.NET SDK 9.0** | `dotnet-sdk-9.0` |
 | **yt-dlp** | Keep updated — YouTube changes formats frequently |
 | **Python 3** | Standard library only, no pip packages needed |
-| **Invidious** | A running self-hosted instance |
+| **YouTube cookies.txt** | Exported from your browser while logged into YouTube |
 
 ---
 
@@ -36,11 +39,20 @@ Invidious handles **metadata only** (titles, thumbnails, descriptions). Actual v
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/BingleP/jellyfin-invidious-channel.git
-cd jellyfin-invidious-channel
+git clone https://github.com/BingleP/jellyfin-youtube-feed.git
+cd jellyfin-youtube-feed
 ```
 
-### 2. Install the stream proxy
+### 2. Export your YouTube cookies
+
+Install the [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) browser extension, navigate to [youtube.com](https://youtube.com) while logged in, and export your cookies to a file on your server:
+
+```bash
+# example location — can be anywhere readable by the jellyfin user
+/home/youruser/youtube-cookies.txt
+```
+
+### 3. Install the stream proxy
 
 ```bash
 cd proxy/
@@ -55,7 +67,7 @@ systemctl status ytstream-proxy
 curl http://127.0.0.1:3003/info/dQw4w9WgXcQ   # should return video info JSON
 ```
 
-### 3. Build and install the Jellyfin plugin
+### 4. Build and install the plugin
 
 ```bash
 cd ..
@@ -63,42 +75,41 @@ sudo ./deploy.sh
 sudo systemctl restart jellyfin
 ```
 
-This builds the C# plugin in Release mode and installs it to `/var/lib/jellyfin/plugins/Invidious Channel_1.0.0.0/`.
+This builds the plugin and installs it to `/var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/`.
 
-### 4. Enable the channel in Jellyfin
+### 5. Configure the plugin
 
-1. Open Jellyfin → **Dashboard → Channels**
-2. You should see **Invidious** listed — enable it
-3. Go to **Home → Channels → Invidious** to browse Trending / Popular
-
----
-
-## Configuration
-
-### Plugin settings
-
-In Jellyfin: **Dashboard → Plugins → Invidious Channel → Settings**
+In Jellyfin: **Dashboard → Plugins → YouTube Feed → Settings**
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Invidious URL | `http://invidious.lan` | Base URL of your Invidious instance |
-| API Token | _(empty)_ | Optional session cookie if your instance requires auth |
+| **Cookies File Path** | _(empty)_ | Full path to your `cookies.txt` file |
+| **yt-dlp Path** | `/usr/bin/yt-dlp` | Path to the yt-dlp binary |
+| **Feed Refresh Interval Hours** | `6` | How often to re-fetch your recommended feed |
 
-### Proxy settings
+### 6. Open the channel
 
-Edit the environment variables in `/etc/systemd/system/ytstream-proxy.service`:
+1. Go to **Home → Channels → YouTube Feed**
+2. On first open, the plugin fetches your recommended feed (takes a few seconds)
+3. Videos appear with titles and thumbnails — click to play
 
-```ini
-Environment=INVIDIOUS_URL=http://your-invidious-host   # your Invidious base URL
-Environment=YTDLP_PATH=/usr/bin/yt-dlp                 # path to yt-dlp (optional)
-Environment=PROXY_PORT=3003                             # listen port (optional)
-```
+---
 
-After editing:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart ytstream-proxy
-```
+## How the feed is populated
+
+Each time you open the channel (and the refresh interval has elapsed), the plugin:
+
+1. Runs `yt-dlp --cookies /your/cookies.txt --flat-playlist --print "%(id)s\t%(title)s" https://www.youtube.com/feed/recommended`
+2. Clears old `.strm` files from the plugin's data directory
+3. Writes a fresh `.strm` file for each recommended video:
+   ```
+   /var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/strm/
+       Some Video Title.strm        ← contains: https://www.youtube.com/watch?v=abc123
+       Another Video.strm
+       ...
+   ```
+
+You can also manually drop `.strm` files into that directory to pin specific videos.
 
 ---
 
@@ -127,21 +138,20 @@ sudo systemctl restart jellyfin
 ## Repository layout
 
 ```
-jellyfin-invidious-channel/
+jellyfin-youtube-feed/
 ├── Api/
-│   ├── InvidiousApiClient.cs   # Invidious HTTP client
-│   └── Models.cs               # JSON data models
+│   └── FeedSync.cs                     # Runs yt-dlp, writes .strm files
 ├── Channel/
-│   └── InvidiousChannel.cs     # IChannel implementation (Trending, Popular)
-├── Plugin.cs                   # Plugin entry point
-├── PluginConfiguration.cs      # Settings (InvidiousUrl, ApiToken)
-├── ServiceRegistrator.cs       # DI registration (required — Jellyfin won't auto-discover)
-├── Jellyfin.Plugin.InvidiousChannel.csproj
-├── deploy.sh                   # Build + install plugin
+│   └── YouTubeFeedChannel.cs           # IChannel implementation
+├── Plugin.cs                           # Plugin entry point
+├── PluginConfiguration.cs              # Settings (CookiesFilePath, YtDlpPath, FeedRefreshIntervalHours)
+├── ServiceRegistrator.cs               # DI registration
+├── Jellyfin.Plugin.YouTubeFeed.csproj
+├── deploy.sh                           # Build + install plugin
 └── proxy/
-    ├── ytstream_proxy.py        # Python HLS redirect proxy
-    ├── ytstream-proxy.service   # systemd unit template
-    └── install-proxy.sh         # Proxy install script
+    ├── ytstream_proxy.py               # Python HLS redirect proxy
+    ├── ytstream-proxy.service          # systemd unit template
+    └── install-proxy.sh               # Proxy install script
 ```
 
 ---
@@ -149,9 +159,16 @@ jellyfin-invidious-channel/
 ## Troubleshooting
 
 **Channel shows 0 items**
+- Check that `CookiesFilePath` is set correctly in plugin settings
 - Check Jellyfin logs: `journalctl -u jellyfin -f`
-- Confirm Invidious is reachable: `curl http://YOUR_INVIDIOUS_HOST/api/v1/trending`
-- Bump `DataVersion` in `InvidiousChannel.cs` and redeploy to bust the cache
+- Look for `FeedSync:` log lines — they'll tell you what went wrong
+
+**Feed sync returns no videos / cookies may be expired**
+- Re-export your cookies from the browser and replace the file
+- Test yt-dlp directly:
+  ```bash
+  yt-dlp --cookies /your/cookies.txt --flat-playlist --print "%(id)s\t%(title)s" https://www.youtube.com/feed/recommended
+  ```
 
 **Video plays for a second then stops / 403 errors**
 - Update yt-dlp: `sudo yt-dlp -U`
@@ -163,14 +180,11 @@ jellyfin-invidious-channel/
   yt-dlp -f "best[protocol=m3u8_native]/best" --get-url "https://www.youtube.com/watch?v=VIDEO_ID"
   ```
 
-**`FormatException: Unrecognized Guid format`** in Jellyfin logs
-- Ensure you're running the latest build. The plugin derives a valid GUID from each video ID via MD5 to avoid this.
-
 ---
 
 ## Limitations
 
-- Jellyfin 10.11.x on Linux with a system (non-Docker) install only — DLLs are referenced directly from `/usr/lib/jellyfin/`
+- Jellyfin 10.11.x on Linux with a system (non-Docker) install only
 - ~5–10s per-video startup delay while yt-dlp resolves the stream URL
-- No search support (Invidious search API works but is not wired up to a Jellyfin search interface)
-- YouTube may occasionally return no HLS URL for a video; updating yt-dlp usually resolves it
+- YouTube cookies expire periodically and need re-exporting
+- Recommended feed content is whatever YouTube's algorithm serves for your account

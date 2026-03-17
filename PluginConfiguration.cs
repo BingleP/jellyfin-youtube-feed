@@ -1,26 +1,33 @@
 using MediaBrowser.Model.Plugins;
 
-namespace Jellyfin.Plugin.InvidiousChannel;
+namespace Jellyfin.Plugin.YouTubeFeed;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
     public PluginConfiguration()
     {
-        InvidiousUrl = "http://invidious.lan";
-        ApiToken = string.Empty;
+        CookiesFilePath = string.Empty;
+        YtDlpPath = "/usr/bin/yt-dlp";
+        FeedRefreshIntervalHours = 6;
     }
 
     /// <summary>
-    /// Base URL of your Invidious instance (no trailing slash).
-    /// Default matches your local setup at http://invidious.lan.
+    /// Full path to your YouTube cookies.txt file exported from your browser.
+    /// Used by yt-dlp to fetch your personalised recommended feed.
+    /// Export using a browser extension such as "Get cookies.txt LOCALLY".
+    /// Example: /home/youruser/youtube-cookies.txt
     /// </summary>
-    public string InvidiousUrl { get; set; }
+    public string CookiesFilePath { get; set; }
 
     /// <summary>
-    /// Optional Invidious session cookie value for authenticated requests
-    /// (subscriptions feed). Leave blank for anonymous use.
-    /// To get this: log into Invidious, open DevTools → Application → Cookies,
-    /// copy the value of the "SID" cookie.
+    /// Full path to the yt-dlp binary.
+    /// Default: /usr/bin/yt-dlp
     /// </summary>
-    public string ApiToken { get; set; }
+    public string YtDlpPath { get; set; }
+
+    /// <summary>
+    /// How often (in hours) to refresh the recommended feed and rewrite .strm files.
+    /// Default: 6
+    /// </summary>
+    public int FeedRefreshIntervalHours { get; set; }
 }

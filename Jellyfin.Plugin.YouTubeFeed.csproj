@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <AssemblyName>Jellyfin.Plugin.InvidiousChannel</AssemblyName>
-    <RootNamespace>Jellyfin.Plugin.InvidiousChannel</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.YouTubeFeed</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.YouTubeFeed</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
