@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube Feed</title>
+</head>
+<body>
+<div id="YouTubeFeedConfigPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button">
+
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="YouTubeFeedConfigForm">
+
+                <div class="sectionTitleContainer">
+                    <h2 class="sectionTitle">YouTube Feed Settings</h2>
+                </div>
+
+                <!-- Cookie export instructions -->
+                <div class="sectionTitleContainer" style="margin-top:1em;">
+                    <h2 class="sectionTitle">How to export your YouTube cookies</h2>
+                </div>
+
+                <!-- Browser toggle -->
+                <div style="margin-bottom:1em;">
+                    <button type="button" id="btnFirefox" onclick="showBrowser('firefox')"
+                            style="margin-right:0.5em; padding:0.4em 1.2em; cursor:pointer; border-radius:4px;">
+                        Firefox
+                    </button>
+                    <button type="button" id="btnChrome" onclick="showBrowser('chrome')"
+                            style="padding:0.4em 1.2em; cursor:pointer; border-radius:4px;">
+                        Chrome
+                    </button>
+                </div>
+
+                <!-- Firefox instructions -->
+                <div id="instructionsFirefox" style="margin-bottom:1.5em; line-height:1.7;">
+                    <ol style="padding-left:1.2em;">
+                        <li>Install the <strong><a href="https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/" target="_blank" rel="noopener">Get cookies.txt LOCALLY</a></strong> extension from the Firefox Add-ons store.</li>
+                        <li>Make sure you are <strong>logged into YouTube</strong> in Firefox.</li>
+                        <li>Click the extension icon in the toolbar while on <strong>youtube.com</strong>.</li>
+                        <li>Select <strong>"Export" → "Current Site"</strong> to download <code>youtube.com_cookies.txt</code>.</li>
+                        <li>Copy the file to your Jellyfin server:<br/><code>scp ~/Downloads/youtube.com_cookies.txt yourserver:/home/youruser/youtube-cookies.txt</code></li>
+                        <li>Enter that path in the <strong>Cookies File Path</strong> field below and save.</li>
+                    </ol>
+                    <p style="margin-top:0.5em;">
+                        <strong>Note:</strong> Cookies expire periodically. If the feed stops updating, re-export and replace the file.
+                    </p>
+                </div>
+
+                <!-- Chrome instructions -->
+                <div id="instructionsChrome" style="display:none; margin-bottom:1.5em; line-height:1.7;">
+                    <ol style="padding-left:1.2em;">
+                        <li>Install the <strong><a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noopener">Get cookies.txt LOCALLY</a></strong> extension from the Chrome Web Store.</li>
+                        <li>Make sure you are <strong>logged into YouTube</strong> in Chrome.</li>
+                        <li>Click the extension icon in the toolbar while on <strong>youtube.com</strong>.</li>
+                        <li>Select <strong>"Export" → "Current Site"</strong> to download <code>youtube.com_cookies.txt</code>.</li>
+                        <li>Copy the file to your Jellyfin server:<br/><code>scp ~/Downloads/youtube.com_cookies.txt yourserver:/home/youruser/youtube-cookies.txt</code></li>
+                        <li>Enter that path in the <strong>Cookies File Path</strong> field below and save.</li>
+                    </ol>
+                    <p style="margin-top:0.5em;">
+                        <strong>Note:</strong> Cookies expire periodically. If the feed stops updating, re-export and replace the file.
+                    </p>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="cookiesFilePath">Cookies File Path</label>
+                    <input id="cookiesFilePath" name="CookiesFilePath" type="text" is="emby-input" />
+                    <div class="fieldDescription">
+                        Full path to your YouTube <code>cookies.txt</code> file exported from your browser.
+                        Example: <code>/home/youruser/youtube-cookies.txt</code>
+                    </div>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="ytDlpPath">yt-dlp Path</label>
+                    <input id="ytDlpPath" name="YtDlpPath" type="text" is="emby-input" />
+                    <div class="fieldDescription">
+                        Full path to the yt-dlp binary. Default: <code>/usr/bin/yt-dlp</code>
+                    </div>
+                </div>
+
+                <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="feedRefreshIntervalHours">Feed Refresh Interval (hours)</label>
+                    <input id="feedRefreshIntervalHours" name="FeedRefreshIntervalHours" type="number" min="1" is="emby-input" />
+                    <div class="fieldDescription">
+                        How often to re-fetch your recommended feed. Default: 6
+                    </div>
+                </div>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised block emby-button">
+                        <span>Save</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var YouTubeFeedConfig = {
+            pluginUniqueId: '4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d'
+        };
+
+        function showBrowser(browser) {
+            var isFirefox = browser === 'firefox';
+            document.getElementById('instructionsFirefox').style.display = isFirefox ? '' : 'none';
+            document.getElementById('instructionsChrome').style.display = isFirefox ? 'none' : '';
+            document.getElementById('btnFirefox').style.fontWeight = isFirefox ? 'bold' : 'normal';
+            document.getElementById('btnChrome').style.fontWeight = isFirefox ? 'normal' : 'bold';
+        }
+
+        // Default to Firefox instructions
+        showBrowser('firefox');
+
+        document.querySelector('#YouTubeFeedConfigPage').addEventListener('pageshow', function () {
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(YouTubeFeedConfig.pluginUniqueId).then(function (config) {
+                document.querySelector('#cookiesFilePath').value = config.CookiesFilePath || '';
+                document.querySelector('#ytDlpPath').value = config.YtDlpPath || '/usr/bin/yt-dlp';
+                document.querySelector('#feedRefreshIntervalHours').value = config.FeedRefreshIntervalHours || 6;
+                Dashboard.hideLoadingMsg();
+            });
+        });
+
+        document.querySelector('#YouTubeFeedConfigForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(YouTubeFeedConfig.pluginUniqueId).then(function (config) {
+                config.CookiesFilePath = document.querySelector('#cookiesFilePath').value;
+                config.YtDlpPath = document.querySelector('#ytDlpPath').value;
+                config.FeedRefreshIntervalHours = parseInt(document.querySelector('#feedRefreshIntervalHours').value, 10);
+                ApiClient.updatePluginConfiguration(YouTubeFeedConfig.pluginUniqueId, config).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                });
+            });
+        });
+    </script>
+</div>
+</body>
+</html>
