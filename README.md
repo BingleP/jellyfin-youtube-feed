@@ -45,12 +45,22 @@ cd jellyfin-youtube-feed
 
 ### 2. Export your YouTube cookies
 
-Install the [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) browser extension, navigate to [youtube.com](https://youtube.com) while logged in, and export your cookies to a file on your server:
+You need to export your YouTube cookies in Netscape format using a browser extension. Steps are the same for both browsers — only the install link differs.
 
-```bash
-# example location — can be anywhere readable by the jellyfin user
-/home/youruser/youtube-cookies.txt
-```
+**Firefox** — install [Get cookies.txt LOCALLY](https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/) from the Firefox Add-ons store.
+
+**Chrome** — install [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) from the Chrome Web Store.
+
+Then:
+1. Make sure you are **logged into YouTube** in your browser.
+2. Click the extension icon in the toolbar while on **youtube.com**.
+3. Select **"Export" → "Current Site"** to download `youtube.com_cookies.txt`.
+4. Copy the file to your Jellyfin server:
+   ```bash
+   scp ~/Downloads/youtube.com_cookies.txt yourserver:/home/youruser/youtube-cookies.txt
+   ```
+
+> **Note:** Cookies expire periodically. If the feed stops updating, re-export and replace the file.
 
 ### 3. Install the stream proxy
 
