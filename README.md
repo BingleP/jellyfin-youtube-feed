@@ -1,6 +1,6 @@
 # jellyfin-youtube-feed
 
-A Jellyfin channel plugin that populates your channel with your personalised YouTube recommended feed. Videos are fetched via `yt-dlp` using your browser cookies and streamed as HLS — no YouTube API key or Invidious instance required.
+A Jellyfin channel plugin that populates your channel with your personalised YouTube recommended feed. Videos are fetched via `yt-dlp` using your browser cookies and streamed as MPEG-TS — no YouTube API key or Invidious instance required.
 
 ## How it works
 
@@ -8,17 +8,21 @@ A Jellyfin channel plugin that populates your channel with your personalised You
 On channel open:
   → FeedSync runs yt-dlp with your cookies.txt
   → fetches https://www.youtube.com/feed/recommended
-  → writes a .strm file per video into the plugin's strm/ directory
+  → incrementally updates .strm files in the plugin's strm/ directory
+    (only adds new videos, only removes videos no longer in feed)
   → channel scans strm/ and displays videos with thumbnails
 
 On playback:
   → Jellyfin requests http://127.0.0.1:3003/stream/{videoId}
-  → ytstream-proxy runs yt-dlp --get-url → HLS m3u8 URL
-  → 302 redirect to manifest.googlevideo.com
-  → Jellyfin's ffmpeg transcodes HLS stream to your client
+  → ytstream-proxy checks its in-memory URL cache (4-hour TTL)
+    → cache hit:  immediately spawns ffmpeg with cached CDN URLs (~0ms)
+    → cache miss: runs yt-dlp --get-url to resolve CDN URLs (5–10s)
+  → ffmpeg stream-copies H.264 video + AAC audio into MPEG-TS → stdout pipe
+  → Jellyfin receives MPEG-TS and direct-streams to compatible clients
+    (no Jellyfin re-encode for H.264-capable clients)
 ```
 
-> **Note:** Expect a 5–10 second startup delay per video — that's `yt-dlp` resolving the stream URL. Feed sync also takes a few seconds on first open.
+> **Note:** The first play of any video incurs a 5–10 second startup delay while `yt-dlp` resolves the CDN URL. Subsequent plays of the same video within 4 hours are instant (served from cache).
 
 ---
 
@@ -110,8 +114,7 @@ In Jellyfin: **Dashboard → Plugins → YouTube Feed → Settings**
 Each time you open the channel (and the refresh interval has elapsed), the plugin:
 
 1. Runs `yt-dlp --cookies /your/cookies.txt --flat-playlist --print "%(id)s\t%(title)s" https://www.youtube.com/feed/recommended`
-2. Clears old `.strm` files from the plugin's data directory
-3. Writes a fresh `.strm` file for each recommended video:
+2. Incrementally updates `.strm` files — only writes files that are new or changed, only deletes files no longer in the feed. Unchanged videos are left on disk untouched to avoid Jellyfin metadata churn.
    ```
    /var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/strm/
        Some Video Title.strm        ← contains: https://www.youtube.com/watch?v=abc123
@@ -120,6 +123,21 @@ Each time you open the channel (and the refresh interval has elapsed), the plugi
    ```
 
 You can also manually drop `.strm` files into that directory to pin specific videos.
+
+---
+
+## Stream proxy configuration
+
+The proxy reads configuration from environment variables set in the systemd service file (`proxy/ytstream-proxy.service`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `YTDLP_PATH` | `/usr/bin/yt-dlp` | Path to yt-dlp binary |
+| `FFMPEG_PATH` | `/usr/lib/jellyfin-ffmpeg/ffmpeg` | Path to ffmpeg binary |
+| `PROXY_PORT` | `3003` | Port to listen on |
+| `COOKIES_FILE` | _(empty)_ | Path to cookies.txt for authenticated resolution |
+| `URL_CACHE_TTL` | `14400` | Seconds to cache resolved CDN URLs (default: 4 hours) |
+| `URL_CACHE_MAX` | `500` | Maximum cached entries before LRU eviction |
 
 ---
 
@@ -134,6 +152,7 @@ sudo systemctl restart jellyfin
 
 # Redeploy proxy
 sudo cp proxy/ytstream_proxy.py /opt/ytstream-proxy/
+sudo systemctl daemon-reload
 sudo systemctl restart ytstream-proxy
 ```
 
@@ -150,7 +169,7 @@ sudo systemctl restart jellyfin
 ```
 jellyfin-youtube-feed/
 ├── Api/
-│   └── FeedSync.cs                     # Runs yt-dlp, writes .strm files
+│   └── FeedSync.cs                     # Runs yt-dlp, incrementally writes .strm files
 ├── Channel/
 │   └── YouTubeFeedChannel.cs           # IChannel implementation
 ├── Plugin.cs                           # Plugin entry point
@@ -159,8 +178,8 @@ jellyfin-youtube-feed/
 ├── Jellyfin.Plugin.YouTubeFeed.csproj
 ├── deploy.sh                           # Build + install plugin
 └── proxy/
-    ├── ytstream_proxy.py               # Python HLS redirect proxy
-    ├── ytstream-proxy.service          # systemd unit template
+    ├── ytstream_proxy.py               # Stream proxy with URL caching and ffmpeg pipeline
+    ├── ytstream-proxy.service          # systemd unit (includes resource limits)
     └── install-proxy.sh               # Proxy install script
 ```
 
@@ -182,19 +201,24 @@ jellyfin-youtube-feed/
 
 **Video plays for a second then stops / 403 errors**
 - Update yt-dlp: `sudo yt-dlp -U`
-- YouTube CDN tokens expire quickly; a fresh yt-dlp version usually fixes it
+- YouTube CDN tokens expire; a fresh yt-dlp version usually fixes it
 
 **`No stream URL available` in proxy logs**
 - Test yt-dlp directly:
   ```bash
-  yt-dlp -f "best[protocol=m3u8_native]/best" --get-url "https://www.youtube.com/watch?v=VIDEO_ID"
+  yt-dlp -f "bestvideo[vcodec^=avc1]+bestaudio/best" --get-url "https://www.youtube.com/watch?v=VIDEO_ID"
   ```
+
+**Check proxy logs**
+```bash
+journalctl -u ytstream-proxy -f
+```
 
 ---
 
 ## Limitations
 
 - Jellyfin 10.11.x on Linux with a system (non-Docker) install only
-- ~5–10s per-video startup delay while yt-dlp resolves the stream URL
+- First play of any video has a 5–10s startup delay while yt-dlp resolves the CDN URL (subsequent plays within 4 hours are instant)
 - YouTube cookies expire periodically and need re-exporting
 - Recommended feed content is whatever YouTube's algorithm serves for your account

@@ -104,16 +104,22 @@ public class YouTubeFeedChannel : IChannel, ISupportsLatestMedia
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private ChannelItemInfo StrmToItem(string title, string videoId) => new()
+    private ChannelItemInfo StrmToItem(string title, string videoId)
     {
-        Id = VideoIdToGuid(videoId),
-        Name = title,
-        Type = ChannelItemType.Media,
-        MediaType = ChannelMediaType.Video,
-        ContentType = ChannelMediaContentType.Clip,
-        ImageUrl = $"https://i.ytimg.com/vi/{videoId}/maxresdefault.jpg",
-        MediaSources = BuildMediaSources(videoId, title),
-    };
+        var guid = VideoIdToGuid(videoId);
+        return new ChannelItemInfo
+        {
+            Id = guid,
+            Name = title,
+            Type = ChannelItemType.Media,
+            MediaType = ChannelMediaType.Video,
+            ContentType = ChannelMediaContentType.Clip,
+            // hqdefault.jpg (480×360) exists for every YouTube video.
+            // maxresdefault.jpg only exists for popular videos and causes 404s otherwise.
+            ImageUrl = $"https://i.ytimg.com/vi/{videoId}/hqdefault.jpg",
+            MediaSources = BuildMediaSources(videoId, title, guid),
+        };
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -126,17 +132,17 @@ public class YouTubeFeedChannel : IChannel, ISupportsLatestMedia
         return new Guid(hash).ToString();
     }
 
-    private static List<MediaSourceInfo> BuildMediaSources(string videoId, string title) =>
+    private static List<MediaSourceInfo> BuildMediaSources(string videoId, string title, string guid) =>
     [
         new MediaSourceInfo
         {
-            Id = VideoIdToGuid(videoId),
+            Id = guid,
             Name = title,
             Path = $"http://127.0.0.1:3003/stream/{videoId}",
             Protocol = MediaBrowser.Model.MediaInfo.MediaProtocol.Http,
             Type = MediaSourceType.Default,
             IsRemote = false,
-            Container = "mp4",
+            Container = "ts",
             IsInfiniteStream = false,
             RequiresOpening = false,
             RequiresClosing = false,

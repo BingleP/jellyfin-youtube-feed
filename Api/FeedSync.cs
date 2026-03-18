@@ -94,10 +94,8 @@ public class FeedSync
             return;
         }
 
-        // Clear existing strm files so stale recommendations are removed
-        foreach (var old in Directory.EnumerateFiles(strmDir, "*.strm"))
-            File.Delete(old);
-
+        // Build the set of files the new feed wants to keep
+        var wantedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int written = 0;
         foreach (var line in lines)
         {
@@ -113,11 +111,28 @@ public class FeedSync
             if (string.IsNullOrWhiteSpace(safeTitle)) safeTitle = videoId;
 
             var filePath = Path.Combine(strmDir, $"{safeTitle}.strm");
-            await File.WriteAllTextAsync(filePath, $"https://www.youtube.com/watch?v={videoId}", ct)
-                .ConfigureAwait(false);
-            written++;
+            wantedFiles.Add(filePath);
+
+            // Only write if the file is new or the video ID changed
+            var expectedContent = $"https://www.youtube.com/watch?v={videoId}";
+            if (!File.Exists(filePath) || (await File.ReadAllTextAsync(filePath, ct).ConfigureAwait(false)).Trim() != expectedContent)
+            {
+                await File.WriteAllTextAsync(filePath, expectedContent, ct).ConfigureAwait(false);
+                written++;
+            }
         }
 
-        _logger.LogInformation("FeedSync: wrote {Count} .strm files", written);
+        // Remove stale .strm files that are no longer in the feed
+        int deleted = 0;
+        foreach (var existing in Directory.EnumerateFiles(strmDir, "*.strm"))
+        {
+            if (!wantedFiles.Contains(existing))
+            {
+                File.Delete(existing);
+                deleted++;
+            }
+        }
+
+        _logger.LogInformation("FeedSync: wrote {Written} .strm files, removed {Deleted} stale", written, deleted);
     }
 }
