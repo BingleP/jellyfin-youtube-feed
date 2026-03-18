@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=YOUR_USERNAME
 EnvironmentFile=/opt/ytstream-proxy/config.env
-ExecStart=/usr/bin/python3 /opt/ytstream-proxy/ytstream_proxy.py
+ExecStart=/usr/bin/python3 "/var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/ytstream_proxy.py"
 Restart=on-failure
 RestartSec=5
 

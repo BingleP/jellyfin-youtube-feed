@@ -6,7 +6,8 @@
 #   ytdlp_path   defaults to value in plugin config XML, or /usr/bin/yt-dlp
 set -euo pipefail
 
-INSTALL_DIR="/opt/ytstream-proxy"
+PLUGIN_VERSION="1.0.0.0"
+INSTALL_DIR="/var/lib/jellyfin/plugins/YouTube Feed_${PLUGIN_VERSION}"
 SERVICE_FILE="/etc/systemd/system/ytstream-proxy.service"
 CONFIG_ENV="$INSTALL_DIR/config.env"
 PLUGIN_CONFIG="/var/lib/jellyfin/plugins/configurations/Jellyfin.Plugin.YouTubeFeed.xml"
