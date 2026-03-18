@@ -39,7 +39,6 @@ chmod +x "$INSTALL_DIR/ytstream_proxy.py"
 cat > "$CONFIG_ENV" <<EOF
 YTDLP_PATH=${YTDLP_PATH}
 COOKIES_FILE=${COOKIES_FILE}
-FFMPEG_PATH=/usr/lib/jellyfin-ffmpeg/ffmpeg
 EOF
 
 # 3. Write service file (substitute actual username)

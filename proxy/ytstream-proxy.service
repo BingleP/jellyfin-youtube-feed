@@ -1,5 +1,5 @@
 [Unit]
-Description=YouTube Adaptive Stream Proxy (HLS redirect for Jellyfin)
+Description=YouTube Stream Proxy (302 redirect to CDN for Jellyfin)
 After=network.target
 
 [Service]
