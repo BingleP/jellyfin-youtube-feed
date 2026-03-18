@@ -269,9 +269,6 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
                 "-reconnect", "1",
                 "-reconnect_streamed", "1",
                 "-reconnect_delay_max", "5",
-                # Skip the HTTP range-request that ffmpeg sends to test seekability.
-                # YouTube CDN rejects it anyway; skipping saves a round-trip at startup.
-                "-http_seekable", "-1",
                 "-i", u,
             ]
 
@@ -324,7 +321,6 @@ class StreamHandler(http.server.BaseHTTPRequestHandler):
             proc = subprocess.Popen(
                 ffmpeg_cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
                 cwd="/tmp",
             )
         except Exception as e:
