@@ -169,9 +169,12 @@ sudo systemctl restart jellyfin
 ```
 jellyfin-youtube-feed/
 ├── Api/
-│   └── FeedSync.cs                     # Runs yt-dlp, incrementally writes .strm files
+│   ├── FeedSync.cs                     # Runs yt-dlp, incrementally writes .strm files
+│   └── UninstallController.cs          # POST /youtubefeed/cleanup — removes proxy service and files
 ├── Channel/
 │   └── YouTubeFeedChannel.cs           # IChannel implementation
+├── Configuration/
+│   └── configurationpage.html          # Plugin settings UI (includes Uninstall button)
 ├── Plugin.cs                           # Plugin entry point
 ├── PluginConfiguration.cs              # Settings (CookiesFilePath, YtDlpPath, FeedRefreshIntervalHours)
 ├── ServiceRegistrator.cs               # DI registration
@@ -182,6 +185,19 @@ jellyfin-youtube-feed/
     ├── ytstream-proxy.service          # systemd unit (includes resource limits)
     └── install-proxy.sh               # Proxy install script
 ```
+
+---
+
+## Uninstalling
+
+The plugin configuration page has an **Uninstall Plugin** button (in the Danger Zone section at the bottom). Clicking it will:
+
+1. Stop and remove the `ytstream-proxy` systemd service
+2. Delete `/opt/ytstream-proxy/`
+3. Uninstall the plugin from Jellyfin
+4. Restart Jellyfin to complete removal
+
+This removes everything the plugin added to your system in a single click. No manual cleanup needed.
 
 ---
 
