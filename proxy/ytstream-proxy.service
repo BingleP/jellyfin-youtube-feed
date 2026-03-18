@@ -10,5 +10,23 @@ ExecStart=/usr/bin/python3 /opt/ytstream-proxy/ytstream_proxy.py
 Restart=on-failure
 RestartSec=5
 
+# Prevent restart storm — max 5 restarts in 60 seconds before giving up
+StartLimitBurst=5
+StartLimitInterval=60s
+
+# Log to systemd journal (view with: journalctl -u ytstream-proxy -f)
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits — keeps the proxy from starving Jellyfin
+# Lower CPU/IO priority so Jellyfin always wins under contention
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=5
+# Cap memory to protect against unbounded URL cache growth or runaway processes
+MemoryMax=256M
+# Cap threads — each stream request uses a thread; 50 is far more than any realistic load
+TasksMax=50
+
 [Install]
 WantedBy=multi-user.target
