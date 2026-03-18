@@ -65,6 +65,16 @@
                 </div>
 
                 <div class="inputContainer">
+                    <label class="inputLabel inputLabelUnfocused" for="strmFolderPath">.strm Folder Path</label>
+                    <input id="strmFolderPath" name="StrmFolderPath" type="text" is="emby-input" />
+                    <div class="fieldDescription">
+                        Full path to the folder where feed .strm files are written.
+                        Add this folder as a Jellyfin library (type: Videos or Movies) to browse your feed.
+                        Example: <code>/var/lib/jellyfin/youtube-feed</code>
+                    </div>
+                </div>
+
+                <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="cookiesFilePath">Cookies File Path</label>
                     <input id="cookiesFilePath" name="CookiesFilePath" type="text" is="emby-input" />
                     <div class="fieldDescription">
@@ -131,6 +141,7 @@
         document.querySelector('#YouTubeFeedConfigPage').addEventListener('pageshow', function () {
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(YouTubeFeedConfig.pluginUniqueId).then(function (config) {
+                document.querySelector('#strmFolderPath').value = config.StrmFolderPath || '';
                 document.querySelector('#cookiesFilePath').value = config.CookiesFilePath || '';
                 document.querySelector('#ytDlpPath').value = config.YtDlpPath || '/usr/bin/yt-dlp';
                 document.querySelector('#feedRefreshIntervalHours').value = config.FeedRefreshIntervalHours || 6;
@@ -142,6 +153,7 @@
             e.preventDefault();
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(YouTubeFeedConfig.pluginUniqueId).then(function (config) {
+                config.StrmFolderPath = document.querySelector('#strmFolderPath').value;
                 config.CookiesFilePath = document.querySelector('#cookiesFilePath').value;
                 config.YtDlpPath = document.querySelector('#ytDlpPath').value;
                 config.FeedRefreshIntervalHours = parseInt(document.querySelector('#feedRefreshIntervalHours').value, 10);
