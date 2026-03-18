@@ -45,6 +45,11 @@ public class UninstallController : ControllerBase
             if (Directory.Exists(proxyDir))
                 Directory.Delete(proxyDir, recursive: true);
 
+            // Remove the user-configured .strm feed folder
+            var strmFolder = Plugin.Instance?.Configuration.StrmFolderPath;
+            if (!string.IsNullOrWhiteSpace(strmFolder) && Directory.Exists(strmFolder))
+                Directory.Delete(strmFolder, recursive: true);
+
             // Remove the plugin data folder
             var dataFolder = Plugin.Instance?.DataFolderPath;
             if (dataFolder != null && Directory.Exists(dataFolder))
