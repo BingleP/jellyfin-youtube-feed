@@ -37,7 +37,22 @@ On playback:
 
 ---
 
-## Installation
+## Installing via Jellyfin Plugin Repository
+
+1. In Jellyfin go to **Dashboard → Plugins → Repositories → +**
+2. Add this URL:
+   ```
+   https://raw.githubusercontent.com/BingleP/jellyfin-youtube-feed/master/manifest.json
+   ```
+3. Go to **Dashboard → Plugins → Catalog**, search for **YouTube Feed**, and install it
+4. Restart Jellyfin when prompted
+5. Continue with [Configure the plugin](#5-configure-the-plugin-in-jellyfin) below — you still need to set up cookies, the strm folder, and the Jellyfin library
+
+> **Note:** The proxy service (`ytstream-proxy`) is **not** installed automatically through the plugin catalog. After installing via the catalog you must still run `sudo ./deploy.sh` (or manually run `sudo ./proxy/install-proxy.sh`) to install the proxy. The proxy is required for playback.
+
+---
+
+## Manual Installation (from source)
 
 ### 1. Clone the repo
 
@@ -153,6 +168,12 @@ git pull
 sudo ./deploy.sh
 sudo systemctl restart jellyfin
 ```
+
+To publish a new release to the plugin repository:
+```bash
+./release.sh 1.0.1 "Brief description of what changed"
+```
+This builds the zip, updates `manifest.json`, commits, pushes, and creates the GitHub release.
 
 ---
 
