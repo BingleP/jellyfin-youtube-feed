@@ -46,6 +46,10 @@
       <HintPath>/usr/lib/jellyfin/Microsoft.Extensions.Http.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Microsoft.Extensions.Hosting.Abstractions">
+      <HintPath>/usr/lib/jellyfin/Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.Extensions.Logging.Abstractions">
       <HintPath>/usr/lib/jellyfin/Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
       <Private>false</Private>
