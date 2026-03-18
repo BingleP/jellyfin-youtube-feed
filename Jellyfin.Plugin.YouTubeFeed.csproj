@@ -16,6 +16,10 @@
     <EmbeddedResource Include="Configuration/configurationpage.html" />
   </ItemGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <!-- Reference the DLLs already installed with Jellyfin — no NuGet feed needed -->
   <ItemGroup>
     <Reference Include="Jellyfin.Data">

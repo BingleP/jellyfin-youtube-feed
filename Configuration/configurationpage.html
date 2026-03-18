@@ -96,6 +96,19 @@
                 </div>
 
             </form>
+
+            <div style="margin-top:2.5em; padding-top:1.5em; border-top:1px solid #444;">
+                <h2 class="sectionTitle" style="color:#c0392b;">Danger Zone</h2>
+                <p style="margin-bottom:1em;">
+                    Removes the ytstream-proxy service and all its files, then uninstalls this plugin.
+                    Jellyfin will need to restart to complete removal.
+                </p>
+                <button is="emby-button" id="btnUninstallPlugin" type="button"
+                        class="raised block emby-button"
+                        style="background:#c0392b; color:#fff;">
+                    <span>Uninstall Plugin</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -135,6 +148,32 @@
                 ApiClient.updatePluginConfiguration(YouTubeFeedConfig.pluginUniqueId, config).then(function (result) {
                     Dashboard.processPluginConfigurationUpdateResult(result);
                 });
+            });
+        });
+        document.getElementById('btnUninstallPlugin').addEventListener('click', function () {
+            if (!confirm('This will stop and remove the ytstream-proxy service and uninstall the YouTube Feed plugin.\n\nJellyfin will restart to complete removal. Continue?')) {
+                return;
+            }
+
+            Dashboard.showLoadingMsg();
+
+            // Step 1: clean up proxy service and files
+            ApiClient.ajax({
+                type: 'POST',
+                url: ApiClient.getUrl('youtubefeed/cleanup'),
+            }).then(function () {
+                // Step 2: uninstall the plugin via Jellyfin's API
+                return ApiClient.ajax({
+                    type: 'DELETE',
+                    url: ApiClient.getUrl('Plugins/' + YouTubeFeedConfig.pluginUniqueId),
+                });
+            }).then(function () {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert('Plugin uninstalled. Jellyfin will restart shortly.');
+                Dashboard.restartServer();
+            }).catch(function (err) {
+                Dashboard.hideLoadingMsg();
+                Dashboard.alert('Uninstall failed: ' + (err && err.statusText ? err.statusText : String(err)));
             });
         });
     </script>
