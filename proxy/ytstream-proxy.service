@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 User=YOUR_USERNAME
-Environment=INVIDIOUS_URL=http://invidious.lan
+EnvironmentFile=/opt/ytstream-proxy/config.env
 ExecStart=/usr/bin/python3 /opt/ytstream-proxy/ytstream_proxy.py
 Restart=on-failure
 RestartSec=5
