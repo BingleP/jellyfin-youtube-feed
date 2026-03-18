@@ -142,14 +142,14 @@ public class YouTubeFeedChannel : IChannel, ISupportsLatestMedia
             Protocol = MediaBrowser.Model.MediaInfo.MediaProtocol.Http,
             Type = MediaSourceType.Default,
             IsRemote = false,
-            Container = "ts",
+            Container = "mp4",
             IsInfiniteStream = false,
             RequiresOpening = false,
             RequiresClosing = false,
             SupportsProbing = true,
             SupportsTranscoding = true,
             SupportsDirectPlay = false,
-            SupportsDirectStream = true,
+            SupportsDirectStream = false,
         }
     ];
 }
