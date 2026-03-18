@@ -40,11 +40,6 @@ public class UninstallController : ControllerBase
 
             RunCommand("systemctl", "daemon-reload");
 
-            // Remove the proxy installation directory
-            var proxyDir = "/opt/ytstream-proxy";
-            if (Directory.Exists(proxyDir))
-                Directory.Delete(proxyDir, recursive: true);
-
             // Remove the user-configured .strm feed folder
             var strmFolder = Plugin.Instance?.Configuration.StrmFolderPath;
             if (!string.IsNullOrWhiteSpace(strmFolder) && Directory.Exists(strmFolder))

@@ -84,7 +84,7 @@ sudo ./deploy.sh
 sudo systemctl restart jellyfin
 ```
 
-This builds the plugin DLL, installs it to `/var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/`, installs and starts the `ytstream-proxy` systemd service.
+This builds the plugin DLL, copies `ytstream_proxy.py` into `/var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/`, and installs and starts the `ytstream-proxy` systemd service. Everything lives in the plugin folder — no separate `/opt/` directory.
 
 ### 5. Configure the plugin in Jellyfin
 
@@ -134,7 +134,7 @@ You can also manually drop `.strm` files into the folder to pin specific videos.
 
 ## Stream proxy configuration
 
-The proxy reads configuration from `/opt/ytstream-proxy/config.env` (written by `install-proxy.sh`):
+The proxy reads configuration from `/var/lib/jellyfin/plugins/YouTube Feed_1.0.0.0/config.env` (written by `install-proxy.sh`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
