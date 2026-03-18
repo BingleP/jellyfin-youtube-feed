@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and install the YouTube Feed plugin for Jellyfin.
+# Build and install the YouTube Feed plugin for Jellyfin, including the stream proxy.
 # Usage: sudo ./deploy.sh
 set -euo pipefail
 
@@ -7,9 +7,10 @@ PLUGIN_NAME="YouTube Feed"
 PLUGIN_VERSION="1.0.0.0"
 PLUGIN_DIR="/var/lib/jellyfin/plugins/${PLUGIN_NAME}_${PLUGIN_VERSION}"
 BUILD_DIR="$(dirname "$0")/bin/Release/net9.0"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ">>> Building plugin..."
-dotnet build "$(dirname "$0")/Jellyfin.Plugin.YouTubeFeed.csproj" \
+dotnet build "$SCRIPT_DIR/Jellyfin.Plugin.YouTubeFeed.csproj" \
     -c Release \
     --nologo \
     -o "$BUILD_DIR"
@@ -37,8 +38,11 @@ cat > "$PLUGIN_DIR/meta.json" <<EOF
 }
 EOF
 
-echo ">>> Setting permissions..."
+echo ">>> Setting plugin permissions..."
 chown -R jellyfin:jellyfin "$PLUGIN_DIR"
+
+echo ">>> Installing ytstream-proxy..."
+bash "$SCRIPT_DIR/proxy/install-proxy.sh" "${SUDO_USER:-$USER}"
 
 echo ""
 echo "Done! Restart Jellyfin to load the plugin:"
