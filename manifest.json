@@ -1,0 +1,21 @@
+[
+  {
+    "category": "General",
+    "description": "Populates a Jellyfin Movies library with your personalised YouTube recommended feed. Videos are fetched via yt-dlp using your browser cookies and streamed directly from YouTube's CDN. No YouTube API key or Invidious instance required.",
+    "guid": "4a5b6c7d-8e9f-0a1b-2c3d-4e5f6a7b8c9d",
+    "imageUrl": "",
+    "name": "YouTube Feed",
+    "overview": "Browse your YouTube recommended feed in Jellyfin",
+    "owner": "BingleP",
+    "versions": [
+      {
+        "changelog": "Initial release. Library-based architecture using .strm files and a lightweight 302-redirect proxy. No ffmpeg in the proxy path — Jellyfin streams directly from YouTube CDN.",
+        "checksum": "eae4c9bc212018b017fc283eee7107d5",
+        "sourceUrl": "https://github.com/BingleP/jellyfin-youtube-feed/releases/download/v1.0.0/jellyfin-youtube-feed_1.0.0.0.zip",
+        "targetAbi": "10.11.0.0",
+        "timestamp": "2026-03-18T00:00:00.0000000Z",
+        "version": "1.0.0.0"
+      }
+    ]
+  }
+]
